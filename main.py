@@ -21,6 +21,8 @@ A股自选股智能分析系统 - 主调度程序
 - 效率优先：关注筹码集中度好的股票
 - 买点偏好：缩量回踩 MA5/MA10 支撑
 """
+import asyncio
+import atexit
 import os
 from pathlib import Path
 from typing import Dict, Optional
@@ -29,7 +31,7 @@ from dotenv import dotenv_values
 from src.config import setup_env
 
 _INITIAL_PROCESS_ENV = dict(os.environ)
-setup_env()
+setup_env(True)
 
 # 代理配置 - 通过 USE_PROXY 环境变量控制，默认关闭
 # GitHub Actions 环境自动跳过代理配置
@@ -703,6 +705,20 @@ def _build_schedule_time_provider(default_schedule_time: str):
     return _provider
 
 
+def _cleanup():
+    """清理事件循环"""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.stop()
+        if not loop.is_closed():
+            loop.close()
+    except:
+        pass  # 忽略清理时的错误
+
+# 注册清理函数
+atexit.register(_cleanup)
+
 def main() -> int:
     """
     主入口函数
@@ -958,7 +974,11 @@ def main() -> int:
     except Exception as e:
         logger.exception(f"程序执行失败: {e}")
         return 1
-
+    finally:
+        # 确保事件循环被关闭
+        loop = asyncio.get_event_loop()
+        if not loop.is_closed():
+            loop.close()
 
 if __name__ == "__main__":
     sys.exit(main())

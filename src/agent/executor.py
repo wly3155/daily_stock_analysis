@@ -16,7 +16,9 @@ same implementation.
 
 import json
 import logging
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from src.agent.llm_adapter import LLMToolAdapter
@@ -587,6 +589,57 @@ class AgentExecutor:
             conversation_manager.add_message(session_id, "assistant", error_note)
 
         return result
+
+
+    def _save_messages_to_file(messages: Any,
+                            filename = None,
+                            directory: str = None):
+        import datetime
+        """
+        将消息保存到文件
+        Args:
+            messages: 要保存的消息（可以是字符串、字典、列表等）
+            filename: 文件名，如果为None则自动生成
+            directory: 日志目录
+        """
+        # 生成文件名
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            filename = f"debug_{timestamp}.log"
+
+        # 创建日志目录
+        if directory is None:
+            directory = (os.getenv("LOG_DIR") or "./logs").strip() or "./logs"
+
+        directory_dir = Path(directory)
+        directory_dir.mkdir(exist_ok=True, parents=True)
+        filepath = directory_dir / filename
+
+        try:
+            # 准备要写入的内容
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+            header = f"\n{'='*60}\n[DEBUG LOG] {timestamp}\n{'='*60}\n"
+
+            with open(filepath, 'a', encoding='utf-8') as f:
+                f.write(header)
+
+                # 根据类型处理消息
+                if isinstance(messages, (dict, list, tuple)):
+                    # 如果是可序列化的结构，使用 JSON
+                    try:
+                        f.write(json.dumps(messages, ensure_ascii=False, indent=2))
+                    except:
+                        f.write(str(messages))
+                else:
+                    f.write(str(messages))
+
+                f.write('\n')
+
+            logging.debug(f"saving prompt to file {filepath}")
+
+        except Exception as e:
+            logging.error(f"[ERROR] fail to save prompt: {e}")
+
 
     def _run_loop(self, messages: List[Dict[str, Any]], tool_decls: List[Dict[str, Any]], parse_dashboard: bool, progress_callback: Optional[Callable] = None) -> AgentResult:
         """Delegate to the shared runner and adapt the result.

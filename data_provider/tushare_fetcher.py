@@ -519,6 +519,12 @@ class TushareFetcher(BaseFetcher):
         
         return df
 
+    def is_fetcher_available(self) -> bool:
+        if self._api is None:
+            return False
+        return True
+
+
     def get_stock_name(self, stock_code: str) -> Optional[str]:
         """
         获取股票名称

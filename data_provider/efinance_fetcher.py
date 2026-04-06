@@ -583,7 +583,60 @@ class EfinanceFetcher(BaseFetcher):
         df = df[existing_cols]
         
         return df
-    
+
+    def get_stock_name(self, stock_code: str) -> Optional[str]:
+        """
+        获取股票名称
+
+        数据来源：ef.stock.get_base_info()
+
+        API 参数说明：
+        - stock_codes: 股票代码
+        """
+        import efinance as ef
+        import pandas as pd
+
+        # 防封禁策略 1: 随机 User-Agent
+        self._set_random_user_agent()
+
+        # 防封禁策略 2: 强制休眠
+        self._enforce_rate_limit()
+
+        api_start = time.time()
+        try:
+            # 调用 efinance 获取股票基本信息
+            df = _ef_call_with_timeout(
+                ef.stock.get_base_info,
+                stock_codes=stock_code,
+                timeout=30,
+            )
+
+            api_elapsed = time.time() - api_start
+            logger.info(
+                f"[API返回] Eastmoney 股票基本信息成功: "
+                f"stock_code={stock_code}, "
+                f"type={type(df).__name__}, elapsed={api_elapsed:.2f}s"
+            )
+
+            if isinstance(df, pd.Series):
+                return df.to_dict().get('股票名称')
+
+        except Exception as e:
+            api_elapsed = time.time() - api_start
+            failure_message = (
+                f"efinance 获取股票名称失败: stock_code={stock_code}, "
+                f"elapsed={api_elapsed:.2f}s, error={e}"
+            )
+
+            if "429" in str(e) or "Too Many Requests" in str(e) or "访问过于频繁" in str(e):
+                logger.warning(failure_message)
+                raise RateLimitError(f"efinance 可能被限流: {failure_message}") from e
+
+            logger.warning(failure_message)
+            return None
+
+
+
     def get_realtime_quote(self, stock_code: str) -> Optional[UnifiedRealtimeQuote]:
         """
         获取实时行情数据

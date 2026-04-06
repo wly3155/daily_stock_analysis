@@ -182,7 +182,7 @@ class MarketAnalyzer:
             logger.info("[大盘] 获取市场涨跌统计...")
 
             stats = self.data_manager.get_market_stats()
-
+            logger.info("[大盘] 详细数据 {stats}")
             if stats:
                 overview.up_count = stats.get('up_count', 0)
                 overview.down_count = stats.get('down_count', 0)

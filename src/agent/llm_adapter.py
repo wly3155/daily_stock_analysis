@@ -138,6 +138,14 @@ class LLMToolAdapter:
     load balancing.
     """
 
+    def __enter__(self):
+        return self
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+
     def __init__(self, config=None):
         config = config or get_config()
         self._config = config
@@ -506,3 +514,29 @@ class LLMToolAdapter:
             model=model,
             raw=response,
         )
+
+
+    def close(self):
+        """清理 litellm 相关资源"""
+        # 即使没有 Router，litellm 可能有全局状态需要清理
+        import litellm
+
+        # 尝试清理 litellm 的全局缓存
+        if hasattr(litellm, '_async_client'):
+            try:
+                import asyncio
+                # 如果有异步客户端，尝试关闭
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # 在运行的事件循环中关闭
+                    asyncio.create_task(self._cleanup_async(litellm))
+            except:
+                pass
+
+        # 清理可能的同步客户端
+        if hasattr(litellm, '_client'):
+            try:
+                litellm._client.close()
+            except:
+                pass
+

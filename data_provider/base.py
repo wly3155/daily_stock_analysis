@@ -1484,6 +1484,17 @@ class DataFetcherManager:
         is_us = _is_us_code(stock_code)
         _US_CAPABLE_FETCHERS = {"YfinanceFetcher", "LongbridgeFetcher"}
         for fetcher in self._get_fetchers_snapshot():
+            logger.debug(f"fetcher {fetcher}")
+            if hasattr(fetcher, 'is_fetcher_available'):
+                try:
+                    available = self._call_fetcher_method(fetcher, 'is_fetcher_available')
+                    if available is False:
+                        logger.debug(f"fetcher {fetcher} is not available")
+                        continue
+                except Exception as e:
+                    logger.error(f"Error checking fetcher availability: {e}")
+                    continue
+
             if not hasattr(fetcher, 'get_stock_name'):
                 continue
             if is_us and fetcher.name not in _US_CAPABLE_FETCHERS:
